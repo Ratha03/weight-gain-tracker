@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta charset="utf-8">
+<title>Veg Weight Gain Tracker</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--text:#18202a;--muted:#66717e;--line:#e3e7eb;--accent:#1769ff;--done:#dff7e7}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",Arial,sans-serif;color:var(--text)}
+header{position:sticky;top:0;background:rgba(246,247,249,.96);backdrop-filter:blur(12px);z-index:5;padding:14px 16px 10px;border-bottom:1px solid var(--line)}
+h1{font-size:21px;margin:0 0 3px}.sub{font-size:13px;color:var(--muted)}
+.tabs{display:flex;gap:7px;overflow:auto;padding:10px 16px;background:var(--bg);position:sticky;top:78px;z-index:4}
+.day{border:0;background:#e9edf2;border-radius:18px;padding:9px 13px;font-weight:700;white-space:nowrap}.day.active{background:var(--accent);color:white}
+main{padding:8px 14px 100px}.progress{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:13px;margin-bottom:12px}
+.progressTop{display:flex;justify-content:space-between;font-weight:700}.bar{height:9px;background:#e8ebef;border-radius:8px;overflow:hidden;margin-top:9px}.fill{height:100%;background:var(--accent);width:0%;transition:.2s}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;margin:10px 0;overflow:hidden}.meal{padding:12px 14px 7px;font-weight:800}.meal small{display:block;color:var(--muted);font-weight:500;margin-top:2px}
+.item{display:flex;align-items:center;gap:11px;padding:11px 13px;border-top:1px solid var(--line);min-height:54px}.item.done{background:var(--done)}.check{width:28px;height:28px;border-radius:50%;border:2px solid #aeb7c1;background:white;display:grid;place-items:center;flex:none;font-size:17px}.done .check{background:#21a65a;border-color:#21a65a;color:white}.food{flex:1;font-size:15px}.qty{color:var(--muted);font-size:13px;white-space:nowrap}
+.controls{display:flex;gap:8px;margin:10px 0}.btn{border:1px solid var(--line);background:white;border-radius:12px;padding:10px 12px;font-weight:700}.btn.primary{background:var(--accent);color:white;border-color:var(--accent)}
+section.panel{background:white;border:1px solid var(--line);border-radius:16px;padding:14px;margin:12px 0}label{font-size:13px;color:var(--muted);display:block;margin:10px 0 5px}input{width:100%;padding:11px;border:1px solid var(--line);border-radius:11px;font-size:16px}
+.summary{display:grid;grid-template-columns:1fr 1fr;gap:9px}.stat{background:#f3f5f7;border-radius:12px;padding:12px}.stat b{display:block;font-size:20px}.stat span{font-size:12px;color:var(--muted)}
+footer{position:fixed;bottom:0;left:0;right:0;background:rgba(255,255,255,.96);border-top:1px solid var(--line);padding:9px 12px calc(9px + env(safe-area-inset-bottom));display:flex;gap:8px;z-index:10}.footerbtn{flex:1}
+.toast{position:fixed;bottom:78px;left:50%;transform:translateX(-50%);background:#20252b;color:white;padding:9px 13px;border-radius:12px;font-size:13px;display:none;z-index:20}
+</style>
+</head>
+<body>
+<header>
+<h1>🥗 Veg Weight Gain Tracker</h1>
+<div class="sub">45 kg starting point • Tap each food after eating • Progress saves on this device</div>
+</header>
+<div class="tabs" id="tabs"></div>
+<main id="app"></main>
+<div class="toast" id="toast"></div>
+<footer>
+<button class="btn footerbtn" onclick="showProgress()">📈 Progress</button>
+<button class="btn footerbtn primary" onclick="resetToday()">↺ Reset day</button>
+</footer>
+<script>
+const meals=[
+["7:30 AM","Power smoothie",[
+["Milk","300 ml"],["Banana","1 piece"],["Oats","30 g"],["Peanut butter","15 g"],["Almonds","5 pieces"],["Dates","2 pieces"]]],
+["9:30 AM","Breakfast",[
+["Breakfast main","1 serving","Choose 3–4 dosa OR 2 cups poha OR 2 cups upma"],["Curd","150 g"]]],
+["11:30 AM","Snack",[
+["Banana","1 piece"],["Roasted chana","30 g"]]],
+["1:30 PM","Lunch",[
+["Cooked rice","300 g"],["Dal","300 ml"],["Vegetable sabzi","150 g"],["Curd","150 g"],["Ghee","5 g"],["Soya chunks OR paneer","40 g dry / 100 g"]]],
+["5:00 PM","Crispy spicy snack",[
+["Roasted peanuts","25 g"],["Roasted chana","25 g"],["Mixed nuts","20 g","Rotate almonds/cashews/walnuts/pistachios; add chilli, pepper, chaat masala and lemon."]]],
+["7:00 PM","Smoothie",[
+["Curd","200 g"],["Milk","200 ml"],["Banana","1 piece"],["Oats","20 g"],["Peanut butter","15 g"]]],
+["8:30 PM","Dinner",[
+["Chapati","3 pieces"],["Paneer OR soya","100 g paneer / 40 g dry"],["Vegetable sabzi","150 g"],["Curd","100 g"]]],
+["10:30 PM","Optional",[
+["Milk","250 ml","Skip if already comfortably full."]]]
+];
+const days=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+let day=Number(localStorage.getItem("vg_day")||((new Date().getDay()+6)%7));
+const key=()=>`vg_${new Date().getFullYear()}_${new Date().getMonth()}_${new Date().getDate()}_${day}`;
+function load(){try{return JSON.parse(localStorage.getItem(key())||"{}")}catch(e){return {}}}
+function save(x){localStorage.setItem(key(),JSON.stringify(x))}
+function renderTabs(){document.getElementById("tabs").innerHTML=days.map((d,i)=>`<button class="day ${i===day?'active':''}" onclick="day=${i};localStorage.setItem('vg_day',day);render()">${d}</button>`).join("")}
+function render(){
+ renderTabs();let state=load(), total=0, done=0;
+ let html=`<div class="progress"><div class="progressTop"><span>${days[day]} completion</span><span id="pct">0%</span></div><div class="bar"><div class="fill" id="fill"></div></div></div>`;
+ meals.forEach((m,mi)=>{html+=`<div class="card"><div class="meal">${m[0]} — ${m[1]}<small>Tap each item when finished</small></div>`;
+ m[2].forEach((it,ii)=>{let id=`${mi}_${ii}`, ok=!!state[id];total++;if(ok)done++;html+=`<div class="item ${ok?'done':''}" onclick="toggle('${id}')"><div class="check">${ok?'✓':''}</div><div class="food">${it[0]}</div><div class="qty">${it[1]}</div></div>`});html+=`</div>`});
+ html+=`<div class="controls"><button class="btn" onclick="markAll()">✓ Mark all</button><button class="btn" onclick="unmarkAll()">Clear all</button></div>`;
+ html+=`<section class="panel"><h3 style="margin:0">⚖️ Today's weight</h3><label>Morning weight (kg)</label><input type="number" step="0.1" inputmode="decimal" id="weight" placeholder="e.g. 45.2" value="${localStorage.getItem('vg_w_'+day)||''}" onchange="localStorage.setItem('vg_w_'+day,this.value)"><label>Appetite (1–5)</label><input type="number" min="1" max="5" step="1" inputmode="numeric" id="appetite" placeholder="1 = low, 5 = excellent" value="${localStorage.getItem('vg_a_'+day)||''}" onchange="localStorage.setItem('vg_a_'+day,this.value)"></section>`;
+ document.getElementById("app").innerHTML=html;update(done,total)
+}
+function update(done,total){let p=Math.round(done/total*100);document.getElementById("pct").textContent=p+"%";document.getElementById("fill").style.width=p+"%"}
+function toggle(id){let s=load();s[id]=!s[id];save(s);render()}
+function markAll(){let s={};meals.forEach((m,mi)=>m[2].forEach((_,ii)=>s[`${mi}_${ii}`]=true));save(s);render();toast("All items marked ✓")}
+function unmarkAll(){save({});render()}
+function resetToday(){save({});render();toast("Today reset")}
+function toast(t){let x=document.getElementById("toast");x.textContent=t;x.style.display="block";setTimeout(()=>x.style.display="none",1200)}
+function showProgress(){
+ let rows=days.map((d,i)=>{let w=localStorage.getItem('vg_w_'+i)||"—",a=localStorage.getItem('vg_a_'+i)||"—";return `<div class="stat"><b>${d}</b><span>Weight: ${w} kg • Appetite: ${a}</span></div>`}).join("");
+ document.getElementById("app").innerHTML=`<section class="panel"><h2 style="margin-top:0">📈 Weekly progress</h2><div class="summary">${rows}</div><p style="color:#66717e;font-size:13px">Goal: start at 45 kg and first reach 48 kg. Aim for about 0.25–0.5 kg/week. If your weekly average doesn't rise for 2 weeks, add roughly 150–200 kcal/day.</p><button class="btn primary" onclick="render()">← Back to tracker</button></section>`;
+}
+render();
+</script>
+</body>
+</html>
